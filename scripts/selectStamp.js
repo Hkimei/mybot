@@ -26,33 +26,31 @@
 // };
 
 
+const Jimp = require('jimp');
+
 module.exports = (robot) => {
-    let questionSentId = {};
-  
-    robot.respond(/PING$/i, (res) => {
-      res.send({
-        question: '好きな果物は？',
-        options: ['りんご', 'いちご', '梨', 'オレンジ'],
-        onsend: (sent) => {
-          questionSentId[res.message.rooms[res.message.room].id] = sent.message.id;
-        }
-      });
-    });
-  
-    robot.respond('select', (res) => {
-      if (res.json.response === null) {
-        res.send(`Your question is ${res.json.question}.`);
-      } else {
-        res.send({
-          text: `あなたは ${res.json.options[res.json.response]} が好きなんですね.`,
-          onsend: (sent) => {
-            res.send({
-              close_select: questionSentId[res.message.rooms[res.message.room].id]
-            });
-          }
+    const onfile = (res, file) => {
+        res.download(file, (path) => {
+            let ext = file.name.slice(-4);  // オリジナルの拡張子を取得
+            let newFileName = Math.random().toString(32).substring(2) + ext;   // ランダムなファイル名を生成
+            Jimp.read(path)
+                .then((image) => {
+                    return image.resize(250, Jimp.AUTO)  // 横幅を250pxにリサイズし、アスペクト比を維持
+                                .writeAsync('images/' + newFileName);
+                })
+                .then(() => {
+                    res.send({
+                        path: 'images/' + newFileName
+                    });
+                })
+                .catch((err) => {
+                    res.send('Error: ' + err);
+                });
         });
-      }
+    };
+
+    robot.respond('file', (res) => {  // ファイルがアップロードされたときの処理
+        onfile(res, res.json);
     });
-  
-  };
-  
+};
+
